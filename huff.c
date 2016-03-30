@@ -80,34 +80,26 @@ int help(void) {
 	return 0;
 }
 
-/*NODE * allocate_memory(NODE * node_p, int index, NODE ** left_p, NODE ** right_p){
-	NODE *tree_node = (NODE*)malloc(1*sizeof(NODE));
-	if (tree_node != NULL) {
-		tree_node->freq = word_array[index].freq + word_array[index+1].freq;
-		tree_node->left = *left_p;
-		tree_node->right = *right_p;
-		curr_root = tree_node;
-		i++; 
-		return tree_node;
-	}else{
-		error("malloc doesn't work");
+WORD* get_min_elements(WORD ** min1, WORD ** min2, int i, WORD **head, WORD *tail) {
+	
+	if(i < NUM_OF_SYM){
+		*min1 = &word_array[i];
+	}else if (head == tail){ //1 element - final tree
+		return head;
+	} else if(head != tail) {
+		*min1 = *head;
+		*head = (*head)->next;
 	}
-}*/
 
-/*void get_min_elements(WORD ** min1, WORD ** min2, int index, WORD **curr_root) {
-
-	*min1 = word_array[index];
-	printf("test1\n\n");
-
-	if (curr_root == NULL || (**curr_root).freq <= word_array[index + 1].freq) {
-		printf("test1\n\n");
-		min2 = curr_root;
-		return;
+	if(*head == NULL || ( (i+ 1 < NUM_OF_SYM) && ((*head)->freq > word_array[i + 1].freq))) {
+	/**/
+		*min2 = &word_array[i+1];
 	}else {
-		printf("test2\n\n");
-		**min2 = word_array[index+1];
+		*min2 = *head;
 	}
-}*/
+
+	return NULL;
+}
 
 WORD * create_tree() {
 
@@ -121,76 +113,48 @@ WORD * create_tree() {
 		i++;
 	}
 
-	if (i == NUM_OF_SYM ){
-		printf("no symbols in your file? exit\n");
-		//не закрывать, а тоже обрабатывать
+	if (i == NUM_OF_SYM ){	//empty file
 		return NULL;
 	}
 
-	printf("\ntest\n");
-
 	while(i < NUM_OF_SYM || (head->next) != NULL) {
-		//get_min_elements(&min1, &min2, i, &root);
 
-		if(i < NUM_OF_SYM){
-			min1 = &word_array[i];
-		}else if (head == tail){
-			return head;
-		} else if(head != tail) {
-			min1 = head;
-			head = head->next;
-		}
-
-		if(head == NULL || ( (i+ 1 < NUM_OF_SYM) && (head->freq > word_array[i + 1].freq))) {
-			min2 = &word_array[i+1];
-		}else {
-			min2 = head;
-			printf("min is not a leaf\n");
+		WORD * final_head = get_min_elements(&min1, &min2, i, &head, tail);
+		if (final_head != NULL) {
+			printf("creating binary tree: done\n");
+			return final_head;
 		}
 		printf("mins: %c - %d/%c - %d\n", (*min1).sym, (*min1).freq, (*min2).sym, (*min2).freq );
 		
-		/*creating a new node with mins*/
-		WORD *node = (WORD*)malloc(1*sizeof(WORD));
+		WORD *node = (WORD*)malloc(1*sizeof(WORD)); /*creating a new node with mins*/
 		if (node != NULL) {
 			node->freq = min1->freq + min2->freq;
 			node->left = min1;
 			node->right = min2;
+			node->next = NULL;
+			
 			if(min2 == head) {
-				printf("min2 is a node\n");
-				if(head == tail) {
-					printf("only 1 (or 0) node\n");
-					node->next = NULL;
-					tail = node;
+				if(head == tail) {	//only 1 (or 0) node	
 					head = node;
-				}else {
-					printf("nodes\n");
-					node->next = NULL;
+				}else {				//more than 1 nodes
 					head = head->next;
-					//printf("naw it is a head freq: %d\n", head->freq );
 					tail->next = node;
-					tail = node;
 				}
-				//printf("5\n");
 				i++;
-			} else if (min2 == &(word_array[i + 1])) {
-				printf("min2 is a leaf\n");
-				if(head == NULL) {
-					printf("head is null\n");
-					node->next = NULL;
+			} else {	//min2 is a leaf
+				if(head == NULL) {	
 					head = node;
-					tail = node;
 				}else{
-					printf("head is not null!\n");
-					node->next = NULL;
 					tail->next = node;
-					tail = node;
 				}
 				i += 2;
 				printf("added a new node: %d\n", node->freq);
 			}
+			tail = node;
 		}else{
 			error("malloc doesn't work");
 		}
+		
 		printf("total nodes:\n");
 		curr_root = head;
 		while(curr_root != NULL) {
@@ -198,10 +162,6 @@ WORD * create_tree() {
 			curr_root = curr_root->next;
 		}
 		printf("\n\n");
-
-	/* printf("\ngot mins: %c - %d\n", min1->sym, min1->freq );
-	printf("got mins: %c - %d\n", min2->sym, min2->freq );
-	/*NODE * tree_node = allocate_memory(i, NULL, NULL);*/
 	}
 
 	return head;
