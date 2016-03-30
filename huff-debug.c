@@ -18,6 +18,7 @@ typedef struct{
 }WORD;
 
 WORD word_array[NUM_OF_SYM];
+//unsigned long code_array[NUM_OF_SYM];
 
 FILE *source_fp, *dest_fp;
 
@@ -37,6 +38,7 @@ void show_list() {
 }
 
 int compare(WORD *elem1, WORD *elem2) {
+//int compare(const void *a, const void *b) {
 	if ( elem1->freq < elem2->freq) {
 	  return -1;
 	}
@@ -52,6 +54,12 @@ void sort_symbols() {
 	sizeof(WORD), 
 	(compfn)compare );
 }
+
+/*typedef struct{
+    char sym;
+    int code_len;
+    int code;
+}CODE;*/
 
 void print_binary(unsigned int n, int len) {
 
@@ -116,6 +124,7 @@ void get_symbols(void) {
 	while (!feof(source_fp)) {
 	 	size_t readed = fread(&c, sizeof(char), 1, source_fp); 
 	 	if(readed>0){
+	 		//printf("%d\n", (int)c );
 	 		word_array[c].freq++;
 	 		word_array[c].sym = c;
 	 	}else{
@@ -127,6 +136,8 @@ void get_symbols(void) {
 
 void error(const char *msg)
 {
+	//perror();
+	//a.out: huff.c:151: create_tree: Assertion `min1 != ((void *)0)' failed.
     fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg);
     exit(EXIT_FAILURE);
 }
@@ -185,14 +196,18 @@ WORD * create_tree() {
 		return NULL;
 	}
 
+	//int c = 0;
+	//while(/*c++<20 &&*/ (i < NUM_OF_SYM || (head->next) != NULL)) {
 	while(1){
 
 		min1 = get_min_element(&i, &head, tail);
 		assert(min1 != NULL);
 		min2 = get_min_element(&i, &head, tail);
 		if (min2 == NULL) {
+			//printf("creating binary tree: done\n");
 			return min1;
 		}
+		//printf("mins: %c - %d/%c - %d\n", (*min1).sym, (*min1).freq, (*min2).sym, (*min2).freq );
 		
 		WORD *node = (WORD*)malloc(1*sizeof(WORD)); /*creating a new node with mins*/
 		assert(node != NULL);
@@ -207,15 +222,28 @@ WORD * create_tree() {
 		}else {
 			tail->next = node;
 		}
+		//printf("added a new node: %d\n", node->freq);
 
 		tail = node;
+	
+		/*printf("total nodes:\n");
+		curr_root = head;
+		while(curr_root != NULL) {
+			printf("%d", curr_root->freq);
+			curr_root = curr_root->next;
+		}
+		printf("\n\n");*/
 	}
 	assert(0);
 }
 
 void huffman(void){
+	//printf("the place for my future huffman code\n");
 	get_symbols();
+	show_list();
 	sort_symbols();
+	//printf("\n\nAFTER\n\n");
+	show_list();
 	WORD *tree = create_tree();
 	assert(tree!=NULL);
 	printf("%d\n", tree->freq);
@@ -266,6 +294,24 @@ int main(int argc, char *argv[]) {
 
     huffman();
     printf("\nmission complete\n");
+
+    /*Makefile:2: recipe for target 'all' failed
+````make: *** [all] Segmentation fault (core dumped)
+````*/
+
+//SEGMENTATION FAULT
+    /*fclose(dest_fp);
+    fclose(source_fp);*/
     
     return 0;
 }
+
+
+
+
+/*
+for (;;) {
+    size_t n = fread(buf, 1, bufsize, infile);
+    consume(buf, n);
+    if (n < bufsize) { break; }
+}*/     
