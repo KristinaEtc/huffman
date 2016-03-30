@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <assert.h>
 
 FILE *source_fp, *dest_fp;
 
@@ -70,6 +71,7 @@ void get_symbols(void) {
 void error(const char *msg)
 {
 	//perror();
+	//a.out: huff.c:151: create_tree: Assertion `min1 != ((void *)0)' failed.
     fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg);
     exit(EXIT_FAILURE);
 }
@@ -101,6 +103,39 @@ WORD* get_min_elements(WORD ** min1, WORD ** min2, int i, WORD **head, WORD *tai
 	return NULL;
 }
 
+WORD* get_min_element(int *i, WORD **head, WORD *tail) {
+
+	WORD * min_node = *head;
+	WORD * min_leaf = NULL;
+
+	if(*i < NUM_OF_SYM) {
+		min_leaf = &word_array[(*i)];
+	}
+	
+	if(min_node == NULL) {
+		if(min_leaf){
+			(*i)++;
+		}
+		return min_leaf;
+	}
+
+	if(min_leaf == NULL){
+		if(*head){
+			*head = (*head)->next;
+		}
+		return min_node;
+	}
+		
+	if(min_leaf->freq < min_node->freq) {
+		(*i)++;
+		return min_leaf;
+	}else{
+		*head = (*head)->next;
+		return min_node;
+	}
+		
+}
+
 WORD * create_tree() {
 
 	int i = 0;
@@ -117,44 +152,42 @@ WORD * create_tree() {
 		return NULL;
 	}
 
-	while(i < NUM_OF_SYM || (head->next) != NULL) {
+	//int c = 0;
+	//while(/*c++<20 &&*/ (i < NUM_OF_SYM || (head->next) != NULL)) {
+	while(1){
 
-		WORD * final_head = get_min_elements(&min1, &min2, i, &head, tail);
+		/*WORD * final_head = get_min_elements(&min1, &min2, i, &head, tail);
 		if (final_head != NULL) {
 			printf("creating binary tree: done\n");
 			return final_head;
+		}*/
+
+		min1 = get_min_element(&i, &head, tail);
+		assert(min1 != NULL);
+		min2 = get_min_element(&i, &head, tail);
+		if (min2 == NULL) {
+			printf("creating binary tree: done\n");
+			return min1;
 		}
 		printf("mins: %c - %d/%c - %d\n", (*min1).sym, (*min1).freq, (*min2).sym, (*min2).freq );
 		
 		WORD *node = (WORD*)malloc(1*sizeof(WORD)); /*creating a new node with mins*/
-		if (node != NULL) {
-			node->freq = min1->freq + min2->freq;
-			node->left = min1;
-			node->right = min2;
-			node->next = NULL;
-			
-			if(min2 == head) {
-				if(head == tail) {	//only 1 (or 0) node	
-					head = node;
-				}else {				//more than 1 nodes
-					head = head->next;
-					tail->next = node;
-				}
-				i++;
-			} else {	//min2 is a leaf
-				if(head == NULL) {	
-					head = node;
-				}else{
-					tail->next = node;
-				}
-				i += 2;
-				printf("added a new node: %d\n", node->freq);
-			}
-			tail = node;
-		}else{
-			error("malloc doesn't work");
-		}
+		assert(node != NULL);
+
+		node->freq = min1->freq + min2->freq;
+		node->left = min1;
+		node->right = min2;
+		node->next = NULL;
 		
+		if(head == NULL) {	
+			head = node;
+		}else{
+			tail->next = node;
+		}
+		printf("added a new node: %d\n", node->freq);
+		
+		tail = node;
+	
 		printf("total nodes:\n");
 		curr_root = head;
 		while(curr_root != NULL) {
@@ -163,8 +196,7 @@ WORD * create_tree() {
 		}
 		printf("\n\n");
 	}
-
-	return head;
+	assert(0);
 }
 
 void huffman(void){
@@ -175,6 +207,7 @@ void huffman(void){
 	//printf("\n\nAFTER\n\n");
 	show_list();
 	WORD *tree = create_tree();
+	assert(tree!=NULL);
 	printf("%d\n", tree->freq );
 }
 
