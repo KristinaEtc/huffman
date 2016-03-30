@@ -1,90 +1,70 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
-/*struct tree {
-  char sym;
-  struct tree *left;
-  struct tree *right;
-};*/
 FILE *source_fp, *dest_fp;
 
 typedef struct{
-    char sym;
 	int freq;
+    char sym;
+	struct WORD * left;
+	struct WORD * right;
 	struct WORD * next;
 }WORD;
 
-WORD *word_array = NULL;
+#define NUM_OF_SYM 256
+
+WORD word_array[NUM_OF_SYM];
 
 void show_list() {
-
-	WORD * list_p = word_array;
-	while(list_p != NULL) {
-		printf("%c - %d\n", list_p->sym, list_p->freq );
-		list_p = list_p->next;
+	int i;
+	for(i = 0; i < sizeof(word_array)/sizeof(WORD); i++) {
+		if(word_array[i].sym=='\0'){
+			continue;
+		}
+		//printf("%3d - %d\t", (int)word_array[i].sym, word_array[i].freq );
+		printf("%c - %d\t", word_array[i].sym, word_array[i].freq );
 	}
+}
+typedef int (*compfn)(const void*, const void*);
+
+int compare(WORD *elem1, WORD *elem2) {
+//int compare(const void *a, const void *b) {
+	if ( elem1->freq < elem2->freq) {
+	  return -1;
+	}
+	if (elem1->freq > elem2->freq) {
+	  return 1;
+	}
+	return 0;
+}
+
+void sort_symbols() {
+	qsort((void *) word_array, 
+	sizeof(word_array)/sizeof(WORD), 
+	sizeof(WORD), 
+	(compfn)compare );
 }
 
 void get_symbols(void) {
-	//struct word * word_item = NULL;
 	char c;
-	WORD * curr_word = word_array, *last_item = word_array;
-	int sym_checked = 0;
 
 	printf("func: get_symbols\n");
 
-	while (1) {
-	 	fread(&c, sizeof(char), 1, source_fp); 
-	 	if (feof(source_fp)){
-	 		printf("end of source_file\n");
-	 		show_list();
+	memset(word_array, 0, sizeof(word_array));
+
+	while (!feof(source_fp)) {
+	 	size_t readed = fread(&c, sizeof(char), 1, source_fp); 
+	 	if(readed>0){
+	 		//printf("%d\n", (int)c );
+	 		word_array[c].freq++;
+	 		word_array[c].sym = c;
+	 	}else{
 	 		break;
-	 	}
-	 	printf("curr sym = %c\n", c);
-	 	while (curr_word != NULL){
-	 		if(curr_word->sym == c) {
-	 			curr_word->freq = (curr_word->freq)+ 1;
-	 			printf("repeating word: %c - %d \n", c, curr_word->freq);
-	 			sym_checked = 1;
-	 		}else{
-	 			last_item = curr_word;
-	
-	 		}
-	 		curr_word = curr_word->next;
-	 	}
-	 	if(sym_checked == 0) {
-	 		printf("adding a new sym = %c\n", c);
-	 		WORD * word;
-		 	if ((word = (WORD*)malloc(1*sizeof(WORD)) ) != NULL) {
-		 		word->sym = c;
-			 	word->freq = 1;
-			 	word->next = NULL;
-			 } else {
-		 		error("creating a new word struct");
-		 	}
-		 	if(word_array == NULL) {
-		 		word_array = word;
-		 		printf("%c\n", word_array->sym );
-		 		curr_word = word_array;
-		 		last_item = word_array;
-		 		printf("%c\n", last_item->sym );
-		 	}else {
-		 		printf("last it c\n", last_item->sym );
-		 		last_item->next = word;
-		 		last_item = word;
-		 		curr_word = word_array;
-		 	}
-	 	}else {
-	 		sym_checked = 0;
-	 		curr_word = word_array;
 	 	}
 	}
 	fclose ( source_fp );
-	/*while(curr_word != NULL) {
-		printf("%c", curr_word->sym );
-		curr_word = curr_word->next;
-	}*/
 }
 
 void error(const char *msg)
@@ -100,9 +80,105 @@ int help(void) {
 	return 0;
 }
 
+/*NODE * allocate_memory(NODE * node_p, int index, NODE ** left_p, NODE ** right_p){
+	NODE *tree_node = (NODE*)malloc(1*sizeof(NODE));
+	if (tree_node != NULL) {
+		tree_node->freq = word_array[index].freq + word_array[index+1].freq;
+		tree_node->left = *left_p;
+		tree_node->right = *right_p;
+		curr_root = tree_node;
+		i++; 
+		return tree_node;
+	}else{
+		error("malloc doesn't work");
+	}
+}*/
+
+/*void get_min_elements(WORD ** min1, WORD ** min2, int index, WORD **curr_root) {
+
+	*min1 = word_array[index];
+	printf("test1\n\n");
+
+	if (curr_root == NULL || (**curr_root).freq <= word_array[index + 1].freq) {
+		printf("test1\n\n");
+		min2 = curr_root;
+		return;
+	}else {
+		printf("test2\n\n");
+		**min2 = word_array[index+1];
+	}
+}*/
+
+WORD * create_tree() {
+
+	int i = 0;
+	WORD * head = NULL, * tail;
+	WORD *min1 = NULL, *min2 = NULL;
+
+	while(word_array[i].freq == 0 ) {
+		i++;
+	}
+
+	if (i == NUM_OF_SYM ){
+		printf("no symbols in your file? exit\n");
+		//не закрывать, а тоже обрабатывать
+		return NULL;
+	}
+
+	while(i + 1 < NUM_OF_SYM && (head->next) != NULL) {
+		//get_min_elements(&min1, &min2, i, &root);
+
+		min1 = &word_array[i];
+
+		if(head == NULL || head->freq < word_array[i + 1].freq) {
+			min2 = &word_array[i+1];
+		}else {
+			min2 = head;
+		}
+		printf("1\n");
+		/*creating a new node with mins*/
+		WORD *node = (WORD*)malloc(1*sizeof(WORD));
+		if (node != NULL) {
+			printf("2\n");
+			node->freq = min1->freq + min2->freq;
+			node->left = min1;
+			node->right = min2;
+			printf("3\n");
+			if(min2 == head) {
+				printf("4\n");
+				node->next = head->next;
+				if(head == tail) {
+					tail = node;
+				}
+				printf("5\n");
+				i++;
+			} else if (min2 == &(word_array[i + 1])) {
+				printf("6\n");
+				tail->next = node;
+				node = tail;
+				i += 2;
+				printf("7\n");
+			}
+		}else{
+			error("malloc doesn't work");
+		}
+
+	/* printf("\ngot mins: %c - %d\n", min1->sym, min1->freq );
+	printf("got mins: %c - %d\n", min2->sym, min2->freq );
+	/*NODE * tree_node = allocate_memory(i, NULL, NULL);*/
+	}
+
+	return head;
+}
+
 void huffman(void){
-	printf("the place for my future huffman code\n");
+	//printf("the place for my future huffman code\n");
 	get_symbols();
+	show_list();
+	sort_symbols();
+	//printf("\n\nAFTER\n\n");
+	show_list();
+	//WORD *tree = create_tree();
 }
 
 void parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
@@ -147,7 +223,7 @@ int main(int argc, char *argv[]) {
     }
 
     huffman();
-    printf("mission complete\n");
+    printf("\nmission complete\n");
 
     /*Makefile:2: recipe for target 'all' failed
 ````make: *** [all] Segmentation fault (core dumped)
@@ -159,3 +235,13 @@ int main(int argc, char *argv[]) {
     
     return 0;
 }
+
+
+
+
+/*
+for (;;) {
+    size_t n = fread(buf, 1, bufsize, infile);
+    consume(buf, n);
+    if (n < bufsize) { break; }
+}*/     
