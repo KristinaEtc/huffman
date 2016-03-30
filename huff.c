@@ -112,8 +112,10 @@ int help(void) {
 WORD * create_tree() {
 
 	int i = 0;
-	WORD * head = NULL, * tail;
+	WORD * head = NULL, * tail = NULL, *curr_root;
 	WORD *min1 = NULL, *min2 = NULL;
+
+	printf("\nfunc: get_symbols\n");
 
 	while(word_array[i].freq == 0 ) {
 		i++;
@@ -125,43 +127,77 @@ WORD * create_tree() {
 		return NULL;
 	}
 
-	while(i + 1 < NUM_OF_SYM && (head->next) != NULL) {
+	printf("\ntest\n");
+
+	while(i < NUM_OF_SYM || (head->next) != NULL) {
 		//get_min_elements(&min1, &min2, i, &root);
 
-		min1 = &word_array[i];
+		if(i < NUM_OF_SYM){
+			min1 = &word_array[i];
+		}else if (head == tail){
+			return head;
+		} else if(head != tail) {
+			min1 = head;
+			head = head->next;
+		}
 
-		if(head == NULL || head->freq < word_array[i + 1].freq) {
+		if(head == NULL || ( (i+ 1 < NUM_OF_SYM) && (head->freq > word_array[i + 1].freq))) {
 			min2 = &word_array[i+1];
 		}else {
 			min2 = head;
+			printf("min is not a leaf\n");
 		}
-		printf("1\n");
+		printf("mins: %c - %d/%c - %d\n", (*min1).sym, (*min1).freq, (*min2).sym, (*min2).freq );
+		
 		/*creating a new node with mins*/
 		WORD *node = (WORD*)malloc(1*sizeof(WORD));
 		if (node != NULL) {
-			printf("2\n");
 			node->freq = min1->freq + min2->freq;
 			node->left = min1;
 			node->right = min2;
-			printf("3\n");
 			if(min2 == head) {
-				printf("4\n");
-				node->next = head->next;
+				printf("min2 is a node\n");
 				if(head == tail) {
+					printf("only 1 (or 0) node\n");
+					node->next = NULL;
+					tail = node;
+					head = node;
+				}else {
+					printf("nodes\n");
+					node->next = NULL;
+					head = head->next;
+					//printf("naw it is a head freq: %d\n", head->freq );
+					tail->next = node;
 					tail = node;
 				}
-				printf("5\n");
+				//printf("5\n");
 				i++;
 			} else if (min2 == &(word_array[i + 1])) {
-				printf("6\n");
-				tail->next = node;
-				node = tail;
+				printf("min2 is a leaf\n");
+				if(head == NULL) {
+					printf("head is null\n");
+					node->next = NULL;
+					head = node;
+					tail = node;
+				}else{
+					printf("head is not null!\n");
+					node->next = NULL;
+					tail->next = node;
+					tail = node;
+				}
 				i += 2;
-				printf("7\n");
+				printf("added a new node: %d\n", node->freq);
 			}
 		}else{
 			error("malloc doesn't work");
 		}
+		printf("total nodes:\n");
+		curr_root = head;
+		while(curr_root != NULL) {
+			printf("%d", curr_root->freq);
+			curr_root = curr_root->next;
+		}
+		printf("\n\n");
 
 	/* printf("\ngot mins: %c - %d\n", min1->sym, min1->freq );
 	printf("got mins: %c - %d\n", min2->sym, min2->freq );
@@ -178,7 +214,8 @@ void huffman(void){
 	sort_symbols();
 	//printf("\n\nAFTER\n\n");
 	show_list();
-	//WORD *tree = create_tree();
+	WORD *tree = create_tree();
+	printf("%d\n", tree->freq );
 }
 
 void parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
