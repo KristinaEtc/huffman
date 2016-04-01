@@ -20,7 +20,7 @@ typedef struct{
 WORD word_array[NUM_OF_SYM];
 WORD unhuff_word_array[NUM_OF_SYM];
 
-FILE *source_fp, *dest_fp;
+FILE *source_fp, *dest_fp, *test_fp;
 char magic[] = "huff";
 const short version = 1;
 const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";	//crc for huffman vocabilary
@@ -62,6 +62,7 @@ void print_binary(unsigned int n, int len) {
 	int curr = 0;
 
 	while (curr < len) {
+		if(curr%8==0) printf(" ");
 		if (n & 1) { printf("1"); } 
 		else { printf("0"); }
 		n >>= 1;
@@ -211,19 +212,91 @@ WORD * create_tree(WORD * array) {
 }
 
 // crc for huffman vocabilary
-void crc_vocabilary(int *begin, int *end) {
+void crc_vocabilary(int *begin, int *end){
 	return;
 }
 
-void write_encoded_file() {
-/*
-huffman file structure:
-magic|version|crc_begin|pairs_num (nums of "sym-freq" pairs)|
-code vocabilary(sym1-freq1, sym2 - freq2, ...)|crc_end|encodedfile|encodedEOF
-*/
-
-//TODO:add encodedEOF
+void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int curr_code){
 	
+	char bit;
+
+	size_t writed;
+
+    int pos_in_code = 0;
+    while(pos_in_code < code_len){
+    	bit = ((curr_code & (1<<pos_in_code)) >> pos_in_code);
+    	
+    	if(*pos_in_buf == (sizeof(*buf)*8)){
+    		writed = fwrite(buf, sizeof(*buf), 1, dest_fp);
+    		print_binary(*buf, sizeof(*buf)*8);
+			assert(writed > 0);
+			*pos_in_buf = 0;
+			(*buf) &= 0;
+    	}
+		(*buf) |= (bit << (*pos_in_buf));
+		(*pos_in_buf)++;
+ 
+      	pos_in_code++;
+    }
+}
+
+void generate_eof(int *my_eof, int * my_eof_len ){
+	*my_eof = 5555;
+	*my_eof_len = 13; //in bits
+}
+
+int write_data(){
+
+	unsigned char c;
+	char buf;
+	buf &= 0;
+	
+	unsigned int curr_code;
+	int code_len;
+
+	size_t readed, writed;
+
+	fseek(source_fp, 0L, SEEK_SET);
+	rewind(source_fp);
+
+	int pos_in_buf = 0;
+	while (!feof(source_fp)) {
+	 	readed = fread(&c, sizeof(char), 1, source_fp); 
+	 	if(readed > 0){
+
+			//founding symbol in a sorted vocabilary
+			int i = 0;
+			while(word_array[i].sym != c) { i++; }
+			if(i == NUM_OF_SYM) { return; }
+
+			code_len = word_array[i].code_len;
+			curr_code = word_array[i].code;
+
+	 		add_to_buff(&buf, &pos_in_buf, code_len, curr_code);
+	 	}else{
+	 		break;
+	 	}	
+	}
+	
+	//adding unicum EOF
+	generate_eof(&curr_code, &code_len);
+
+	int pos = 0;
+	unsigned int curr_my_eof;
+	while(pos < code_len){
+    	c = (char)curr_code;
+    	add_to_buff(&buf, &pos_in_buf, 8, c);
+    	curr_code >>= 8;
+    	pos+=8;
+    }
+
+	writed = fwrite(&buf, sizeof(buf), 1, dest_fp);
+	assert(writed > 0);
+	return 0;
+}
+
+int write_vocabilary(){
+
 	int i = 0, pairs_num = 0;
 
 	while(word_array[i].freq == 0 ) {
@@ -231,7 +304,7 @@ code vocabilary(sym1-freq1, sym2 - freq2, ...)|crc_end|encodedfile|encodedEOF
 	}
 	
 	if(i == NUM_OF_SYM) {
-		return;
+		return -1;
 	}
 
 	crc_vocabilary(&crc_begin, &crc_end);
@@ -253,8 +326,26 @@ code vocabilary(sym1-freq1, sym2 - freq2, ...)|crc_end|encodedfile|encodedEOF
 		writed = fwrite(&(word_array[i].freq), sizeof(word_array[i].freq), 1, dest_fp);
 		assert(writed > 0);
 	}
+	return 0;
+}
 
-	writed = fwrite(crc_end, sizeof(crc_end)-1, 1, dest_fp);
+void write_encoded_file() {
+/*
+huffman file structure:
+magic|version|crc_begin|pairs_num (nums of "sym-freq" pairs)|
+code vocabilary(sym1-freq1, sym2 - freq2, ...)|crc_end|
+
+encodedData
+
+|encodedEOF
+*/
+	int error;
+
+	error = write_vocabilary();
+	assert(error == 0);
+	error = write_data();
+	assert(!error);
+	size_t writed = fwrite(crc_end, sizeof(crc_end)-1, 1, dest_fp);
 	assert(writed > 0);
 }
 
@@ -384,7 +475,7 @@ void huffman() {
 	write_encoded_file();
 	close_files();
 
-	printf("\n--------\nunhuffman part:\n\n");
+	/*printf("\n--------\nunhuffman part:\n\n");
 
 	open_files("d.txt", "d1.txt"); 
 
@@ -398,10 +489,12 @@ void huffman() {
 
 	get_codes(unhuff_tree, 0, 0, 0);
 	show_codes(&unhuff_word_array);
+
+
 	
 	//write_final();
 
-	close_files();
+	close_files();*/
 	printf("\ndone.\n");
 }
 
