@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
-#include <math.h>
+#include <string.h>
 
 #define NUM_OF_SYM 256
 
@@ -18,21 +18,25 @@ typedef struct{
 }WORD;
 
 WORD word_array[NUM_OF_SYM];
+WORD unhuff_word_array[NUM_OF_SYM];
 
 FILE *source_fp, *dest_fp;
+char magic[] = "huff";
+const short version = 1;
+const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";	//crc for huffman vocabilary
 
 typedef int (*compfn)(const void*, const void*); //for compare function
 
 /*----------------------------functions-----------------------------------*/
 
-void show_list() {
+void show_list(WORD *array) {
 	int i;
 
-	for(i = 0; i < sizeof(word_array)/sizeof(WORD); i++) {
-		if(word_array[i].sym=='\0'){
+	for(i = 0; i < NUM_OF_SYM; i++) {
+		if((array[i]).sym=='\0'){
 			continue;
 		}
-		printf("%c - %d\t", word_array[i].sym, word_array[i].freq );
+		printf("%c - %d\t", array[i].sym, array[i].freq );
 	}
 }
 
@@ -67,11 +71,11 @@ void print_binary(unsigned int n, int len) {
 	printf("\n");
 }
 
-void show_codes(){
+void show_codes(WORD *array){
 	int i = 0;
 	unsigned long n;
 
-	while(word_array[i].freq == 0 ) {
+	while(array[i].freq == 0 ) {
 		i++;
 	}
 
@@ -80,8 +84,8 @@ void show_codes(){
 	}
 
 	for(i; i < NUM_OF_SYM; i++) {
-		printf("%c: ", word_array[i].sym);
-		print_binary(word_array[i].code, word_array[i].code_len);
+		printf("%c: ", array[i].sym);
+		print_binary(array[i].code, array[i].code_len);
 	}
 	printf("\n");
 }
@@ -94,56 +98,51 @@ void get_codes(WORD*root, int code, int pos, int code_len) {
 		return;
 	}
 	code |= 1 << pos;
-	code_len++;
-	pos++;
-	get_codes(root->right, code, pos, code_len);
+	get_codes(root->right, code, pos + 1, code_len + 1);
 	
-	pos--;
-	code_len--;
 	code &= ~(1 << pos);
-	code_len++;
-	pos++;
-	get_codes(root->left, code, pos, code_len);
+	get_codes(root->left, code, pos + 1, code_len + 1);
 }
 
 void get_symbols(void) {
 	unsigned char c;
 
-	printf("func: get_symbols\n");
-
 	memset(word_array, 0, sizeof(word_array));
 
 	while (!feof(source_fp)) {
 	 	size_t readed = fread(&c, sizeof(char), 1, source_fp); 
-	 	if(readed>0){
+	 	if(readed > 0){
 	 		word_array[c].freq++;
 	 		word_array[c].sym = c;
 	 	}else{
 	 		break;
 	 	}
 	}
-	fclose ( source_fp );
 }
 
-void error(const char *msg)
-{
+void error(const char *msg) {
+	close_files();
+	//remove(filename); //имя файла dest должно быть глобальным, чтобы можно было удалить в случае ошибки
+
     fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg);
     exit(EXIT_FAILURE);
 }
 
 int help(void) {
-	printf("Usage:\n");
+	printf("Usage: encode file\n");
 	printf(" $ ./huff -s source-file.txt -d dest-file.txt\n");
+	printf("To uncode use flag '-u':\n");
+	printf(" $ ./huff -u -s source-file.txt -d dest-file.txt\n");
 	return 0;
 }
 
-WORD* get_min_element(int *i, WORD **head, WORD *tail) {
+WORD* get_min_element(int *i, WORD **head, WORD *tail, WORD* array) {
 
 	WORD * min_node = *head;
 	WORD * min_leaf = NULL;
 
 	if(*i < NUM_OF_SYM) {
-		min_leaf = &word_array[(*i)];
+		min_leaf = &array[(*i)];
 	}
 	
 	if(min_node == NULL) {
@@ -154,7 +153,7 @@ WORD* get_min_element(int *i, WORD **head, WORD *tail) {
 	}
 
 	if(min_leaf == NULL){
-		if(*head){
+		if(*head) {
 			*head = (*head)->next;
 		}
 		return min_node;
@@ -169,15 +168,13 @@ WORD* get_min_element(int *i, WORD **head, WORD *tail) {
 	}	
 }
 
-WORD * create_tree() {
+WORD * create_tree(WORD * array) {
 
 	int i = 0;
 	WORD * head = NULL, * tail = NULL, *curr_root;
 	WORD *min1 = NULL, *min2 = NULL;
 
-	printf("\nfunc: get_symbols\n");
-
-	while(word_array[i].freq == 0 ) {
+	while(array[i].freq == 0 ) {
 		i++;
 	}
 
@@ -187,9 +184,9 @@ WORD * create_tree() {
 
 	while(1){
 
-		min1 = get_min_element(&i, &head, tail);
+		min1 = get_min_element(&i, &head, tail, array);
 		assert(min1 != NULL);
-		min2 = get_min_element(&i, &head, tail);
+		min2 = get_min_element(&i, &head, tail, array);
 		if (min2 == NULL) {
 			return min1;
 		}
@@ -213,19 +210,205 @@ WORD * create_tree() {
 	assert(0);
 }
 
-void huffman(void){
-	get_symbols();
-	sort_symbols();
-	WORD *tree = create_tree();
-	assert(tree!=NULL);
-	printf("%d\n", tree->freq);
-	get_codes(tree, 0, 0, 0);
-	show_codes();
+// crc for huffman vocabilary
+void crc_vocabilary(int *begin, int *end) {
+	return;
 }
 
-void parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
+void write_encoded_file() {
+/*
+huffman file structure:
+magic|version|crc_begin|pairs_num (nums of "sym-freq" pairs)|
+code vocabilary(sym1-freq1, sym2 - freq2, ...)|crc_end|encodedfile|encodedEOF
+*/
 
-	char *opts = "s:d:";
+//TODO:add encodedEOF
+	
+	int i = 0, pairs_num = 0;
+
+	while(word_array[i].freq == 0 ) {
+		i++;
+	}
+	
+	if(i == NUM_OF_SYM) {
+		return;
+	}
+
+	crc_vocabilary(&crc_begin, &crc_end);
+	
+	size_t writed = fwrite(magic, sizeof(magic) - 1, 1, dest_fp);
+	assert(writed > 0);
+	writed = fwrite(&version, sizeof(version), 1, dest_fp);
+	assert(writed > 0);
+	writed = fwrite(crc_begin, sizeof(crc_begin) - 1, 1, dest_fp);
+	assert(writed > 0);
+	
+	pairs_num = NUM_OF_SYM - i;
+	writed = fwrite(&pairs_num, sizeof(pairs_num), 1, dest_fp);
+	assert(writed > 0);
+
+	for(i; i < NUM_OF_SYM; i++) {
+		writed = fwrite(&(word_array[i].sym), sizeof(char), 1, dest_fp);
+		assert(writed > 0);
+		writed = fwrite(&(word_array[i].freq), sizeof(word_array[i].freq), 1, dest_fp);
+		assert(writed > 0);
+	}
+
+	writed = fwrite(crc_end, sizeof(crc_end)-1, 1, dest_fp);
+	assert(writed > 0);
+}
+
+int get_vocabilary() {
+
+	char src_magic[sizeof(magic)];
+	char src_crc_begin[sizeof(crc_begin)], src_crc_end[sizeof(crc_end)];
+	char c;
+	int freq, sym_pairs;
+	short int src_version;
+
+	int i = 0;
+
+	memset(unhuff_word_array, 0, sizeof(unhuff_word_array));
+
+	size_t readed = fread(src_magic, sizeof(magic) - 1, 1, source_fp);
+	if(readed > 0) {
+		src_magic[sizeof(magic)-1] = '\0';
+		if(strcmp(src_magic, magic) != 0) {
+			error("invalid magic: could not unhuffman your file :(");
+		}
+	}else {
+		error("invalid magic: wrong file? :(");	
+	}
+
+	readed = fread(&src_version, sizeof(version), 1, source_fp);
+	if(readed > 0) {
+		if(src_version != version) {
+			error("invalid huffman version: could not unhuffman your file :(");
+		}
+	}else {
+		error("invalid version: wrong file? :(");	
+	}
+
+	readed = fread(src_crc_begin, sizeof(crc_begin) - 1, 1, source_fp);
+	if(readed > 0) {
+		src_crc_begin[sizeof(crc_begin)-1] = '\0';
+		if(strcmp(src_crc_begin, crc_begin) != 0) {
+			error("invalid crc: could not unhuffman your file :(");
+		}
+	}else {
+		error("invalid crc: file is corrupted :(");	
+	}
+
+	readed = fread(&sym_pairs, sizeof(sym_pairs), 1, source_fp);
+	if(readed < 0) {
+		error("invalid file structure: file is corrupted :(");	
+	}
+
+	i = NUM_OF_SYM - sym_pairs;
+	while (!feof(dest_fp) && (i < NUM_OF_SYM)) {
+		
+		readed = fread(&c, sizeof(char), 1, source_fp); 
+		if(readed > 0) {
+			unhuff_word_array[i].sym = c;
+			printf("%c - ",unhuff_word_array[i].sym  );
+		}else { 
+			break; 
+		}
+		
+		readed = fread(&freq, sizeof(freq), 1, source_fp); 
+		if(readed > 0) {
+			unhuff_word_array[i].freq = freq;
+			printf("%d\n ",unhuff_word_array[i].freq  );
+		}else { 
+			error("could not process file :(");
+			return -1; 
+		}
+		//printf("%c - %d\n", unhuff_word_array[i].sym, unhuff_word_array[i].freq );
+		i++;
+	}
+
+	readed = fread(src_crc_end, sizeof(crc_end) - 1, 1, source_fp);
+	if(readed > 0) {
+		src_crc_end[sizeof(crc_end)-1] = '\0';
+		if(strcmp(src_crc_end, crc_end) != 0) {
+			printf("%s - %s\n", crc_end, src_crc_end );
+			error("invalid crc: could not unhuffman your file :(");
+		}
+	}
+
+	return i;
+}
+
+void close_files() {
+	fcloseall();
+	/*if (!fclose(source_fp)){ //добавить отмену еоф
+		error("could not close a source file");
+	}
+	if (!fclose(dest_fp)) {
+		error("could not close a destination file");
+	}*/
+}
+
+void open_files(char * source, char * dest ) {
+
+	printf("source file: %s, destination file: %s\n", source, dest);
+
+	if ((source_fp = fopen(source, "rb")) == NULL) {
+		error("no such source file");
+	}
+
+    if ((dest_fp = fopen(dest, "wb")) == NULL) {
+    	error("couldn't create destination file");
+    }
+}
+
+write_final(){
+}
+
+void huffman() {
+
+	//добавить указатели на функции и запускать их в цикле
+	get_symbols();
+	sort_symbols();
+	show_list(&word_array);
+	
+	WORD *tree = create_tree(&word_array);
+	if(tree == NULL) {
+		close_files(); //qqq
+	}
+	printf("num of elements: %d\n", tree->freq);
+	
+	get_codes(tree, 0, 0, 0);
+	show_codes(&word_array);
+
+	write_encoded_file();
+	close_files();
+
+	printf("\n--------\nunhuffman part:\n\n");
+
+	open_files("d.txt", "d1.txt"); 
+
+	get_vocabilary();
+	show_list(&unhuff_word_array);
+	WORD *unhuff_tree = create_tree(&unhuff_word_array);
+	if(tree == NULL) {
+		close_files(); //qqq
+	}
+	printf("num of elements: %d\n", unhuff_tree->freq);
+
+	get_codes(unhuff_tree, 0, 0, 0);
+	show_codes(&unhuff_word_array);
+	
+	//write_final();
+
+	close_files();
+	printf("\ndone.\n");
+}
+
+char parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
+
+	char *opts = "s:d:u";
+	char what_to_do = 'h';	//'-h' as default 
 
     int opt;
 	while((opt = getopt(argc, argv, opts)) != -1) {
@@ -235,6 +418,9 @@ void parsing_command_line(int argc, char *argv[], char **source_file, char **des
 			    break;
 		    case 'd': 
 				*dest_file = optarg;
+				break;
+			case 'u':
+				what_to_do = 'u';
 			    break;
         	case '?': 
             	fprintf(stderr, "invalid optget option");
@@ -246,26 +432,23 @@ void parsing_command_line(int argc, char *argv[], char **source_file, char **des
 	if (dest_file == NULL || source_file == NULL) {
 		error("invalid optget argument: you didn't choose files");
 	}
+	return what_to_do;
 }
 
 /*.........................main......................................*/
 
 int main(int argc, char *argv[]) {
 
-	char *source_file = NULL, *dest_file = NULL;
+	char *src_fname = NULL, *dst_fname = NULL;
 
-	parsing_command_line(argc, argv, &source_file, &dest_file);
-	printf("source file: %s, destination file: %s\n", source_file, dest_file);
+	char what_to_do = parsing_command_line(argc, argv, &src_fname, &dst_fname);
 
-    if ((source_fp = fopen(source_file, "rb")) == NULL) {
-    	error("no such source file");
-    }
-    if ((dest_fp = fopen(dest_file, "wb")) == NULL) {
-    	error("couldn't create destination file");
-    }
+	open_files(src_fname, dst_fname);
 
-    huffman();
-    printf("\nmission complete\n");
+	//if(what_to_do == 'u') { unhuffman(); }
+	//else { huffman(); }
+
+	huffman();
     
     return 0;
 }
