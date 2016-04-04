@@ -598,15 +598,15 @@ int write_sym(uint8_t buf, WORD** c_tree){
         //curr_c = buf;
         //c >>= 1;
     }
-
-
-
     return 0;
 }
 
 void write_res_file(){
 
     uint8_t buf;
+    uint8_t read_buf[BUF_SIZE];
+    size_t i;
+    int got;
     
     WORD * curr_tree = tree;
 
@@ -617,15 +617,19 @@ void write_res_file(){
 
     int pos_in_buf = (sizeof(buf))*8;*/
     while (!feof(source_fp)) {
-        readed = fread(&buf, sizeof(buf), 1, source_fp); 
+        readed = fread(read_buf, sizeof(read_buf[0]), BUF_SIZE, source_fp); 
         if(readed > 0){
-            if(verbose){
-                printf("bufpuf: ");
-                print_binary(buf, 8);
-            }
-            int got = write_sym(buf, &curr_tree);
-            if(got){
-                break;
+
+            for(i = 0; i < readed; i++ ){
+                buf = read_buf[i];
+                if(verbose){
+                    printf("bufpuf: ");
+                    print_binary(buf, 8);
+                }
+                got = write_sym(buf, &curr_tree);
+                if(got){
+                    break;
+                }
             }
         }else{
             break;
