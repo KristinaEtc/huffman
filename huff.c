@@ -300,6 +300,8 @@ int write_data(){
     uint8_t buf;
     buf &= 0;
 
+    int sym_indices[NUM_OF_SYM-1];
+
     uint8_t read_buf[BUF_SIZE];
     size_t j;
     
@@ -311,6 +313,15 @@ int write_data(){
     fseek(source_fp, 0L, SEEK_SET);
     rewind(source_fp);
 
+
+    //creating array with indices in word_array for O(1) code search
+    int i = 0;
+    for(; i < NUM_OF_SYM; i++ ){
+        if(word_array[i].freq != 0 && word_array[i].eof_flag == 0){
+            sym_indices[word_array[i].sym] = i;
+        }
+    }
+
     int pos_in_buf = sizeof(buf)*8;
     while (!feof(source_fp)) {
         readed = fread(read_buf, sizeof(read_buf[0]), sizeof(read_buf), source_fp); 
@@ -320,8 +331,10 @@ int write_data(){
                
                 /*founding symbol in a sorted vocabilary*/
                 int i = 0;
-                while(i < NUM_OF_SYM && (word_array[i].sym != c || word_array[i].eof_flag == 1 || word_array[i].freq==0)) { i++; }
-                assert(i < NUM_OF_SYM);
+                //while(i < NUM_OF_SYM && (word_array[i].sym != c || word_array[i].eof_flag == 1 || word_array[i].freq==0)) { i++; }
+                //assert(i < NUM_OF_SYM);
+
+                i = sym_indices[c];
 
                 code_len = word_array[i].code_len;
                 curr_code = word_array[i].code;
