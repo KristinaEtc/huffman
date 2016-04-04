@@ -545,7 +545,7 @@ void open_files(char * source, char * dest ) {
     }
 }
 
-int write_sym(uint8_t buf, WORD** c_tree){
+int write_sym(uint8_t buf, WORD** c_tree, uint8_t * write_buf, size_t * write_pos){
     
     int pos_in_buf = sizeof(buf)*8;
 
@@ -564,14 +564,24 @@ int write_sym(uint8_t buf, WORD** c_tree){
                 print_binary(my_eof, 64);
             }
             if(curr_tree->code == my_eof){
-             /*   if(curr_tree->eof_flag == 1){*/
-                    printf("eof\n");
-                    return 1;
-             //   }  
+                writed = fwrite(write_buf, sizeof(write_buf[0]), *write_pos, dest_fp);
+                if(writed < 0){
+                    error("could not write to file");
+                }
+                printf("eof\n");
+                return 1; 
             }
-            writed = fwrite(&(curr_tree->sym), sizeof(curr_tree->sym), 1, dest_fp);
-            if(writed < 0){
-                error("could not write to file");
+            
+            assert(*write_pos < BUF_SIZE);
+            write_buf[*write_pos] = curr_tree->sym;
+            (*write_pos)++;
+
+            if(*write_pos == BUF_SIZE){
+                *write_pos = 0;
+                writed = fwrite(write_buf, sizeof(write_buf[0]), BUF_SIZE, dest_fp);
+                if(writed < 0){
+                    error("could not write to file");
+                }
             }
             curr_tree = tree;
         }  
@@ -605,6 +615,10 @@ void write_res_file(){
 
     uint8_t buf;
     uint8_t read_buf[BUF_SIZE];
+
+    uint8_t write_buf[BUF_SIZE];
+    size_t write_pos = 0;
+
     size_t i;
     int got;
     
@@ -619,17 +633,20 @@ void write_res_file(){
     while (!feof(source_fp)) {
         readed = fread(read_buf, sizeof(read_buf[0]), BUF_SIZE, source_fp); 
         if(readed > 0){
-
+            got = 0;
             for(i = 0; i < readed; i++ ){
                 buf = read_buf[i];
                 if(verbose){
                     printf("bufpuf: ");
                     print_binary(buf, 8);
                 }
-                got = write_sym(buf, &curr_tree);
+                got = write_sym(buf, &curr_tree, write_buf, &write_pos);
                 if(got){
                     break;
                 }
+            }
+            if(got){
+                break;
             }
         }else{
             break;
