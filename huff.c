@@ -5,7 +5,8 @@
 #include <assert.h>
 #include <string.h>
 
-#define NUM_OF_SYM 256
+#define NUM_OF_SYM 257
+#define EOF_MARKER 1
 
 #define error(msg) do { fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg); exit(EXIT_FAILURE); } while(0)
 
@@ -20,6 +21,7 @@ struct WORD_S{
     WORD * next;
     unsigned int code;
     int code_len;
+    char eof_flag;
 };
 
 WORD word_array[NUM_OF_SYM];
@@ -355,7 +357,7 @@ int write_vocabilary(){
     assert(writed > 0);
 
     for(i; i < NUM_OF_SYM; i++) {
-        writed = fwrite(&(word_array[i].sym), sizeof(char), 1, dest_fp);
+        writed = fwrite(&(word_array[i].sym), sizeof(word_array[i].sym), 1, dest_fp);
         assert(writed > 0);
         writed = fwrite(&(word_array[i].freq), sizeof(word_array[i].freq), 1, dest_fp);
         assert(writed > 0);
@@ -512,20 +514,20 @@ int write_sym(unsigned char buf, WORD** c_tree){
         if(curr_tree->right == NULL ){
             if(verbose){
                 printf("\ngot leaf: %c\tpos in buf: %d\n", curr_tree->sym, pos_in_buf);
+                print_binary(curr_tree->code, 32);
+                print_binary(my_eof, 32);
             }
-           // print_binary(curr_tree->code, 32);
-           // print_binary(my_eof, 32);
-
             if(curr_tree->code == my_eof){
-                printf("eof\n");
-                return 1;
+                if(curr_tree->eof_flag == '1'){
+                    printf("eof\n");
+                    return 1;
+                }  
             }
             writed = fwrite(&(curr_tree->sym), sizeof(curr_tree->sym), 1, dest_fp);
             if(writed < 0){
                 error("could not write to file");
             }
             curr_tree = tree;
-
         }  
 
         bit = (buf >> pos_in_buf -1) & 1;
@@ -634,6 +636,7 @@ void add_eof_to_array(WORD *array){
     i--;
     //array[i].sym = 'e';
     array[i].freq = 1;
+    array[i].eof_flag = '1';
 }
 
 void huffman() {
