@@ -7,7 +7,7 @@
 #include <getopt.h>
 
 #define NUM_OF_SYM 257
-#define EOF_MARKER 1
+//#define EOF_MARKER 1
 
 #define error(msg) do { fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg); exit(EXIT_FAILURE); } while(0)
 
@@ -72,9 +72,9 @@ void sort_symbols() {
 
 void print_binary(unsigned int n, int len) {
 
-    if(!verbose){
-        return;
-    }
+    //if(!verbose){
+    //    return;
+    //}
     unsigned int bit = 1<<(len-1);
 
     while (len > 0) {
@@ -97,24 +97,20 @@ void show_codes(WORD *array){
     while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
-
-    if (i == NUM_OF_SYM ){  /*empty fileqqqqqqqqqqqqqq*/
-        return;
-    }
+    assert(i < NUM_OF_SYM);
 
     for(; i < NUM_OF_SYM; i++) {
         char c = array[i].sym;
         if(c<32){
             c = 32;
         }
-        printf("%c %2x/%d: ", c, array[i].sym, array[i].code_len);
+        printf("\nsym: %c /in hex: %x / code len: %d\t ", c, array[i].sym, array[i].code_len);
         print_binary(array[i].code, array[i].code_len);
         print_binary(array[i].code, 32);
     }
     printf("\n");
 }
 
-/*ДОБАВИТЬ ТАЙПОф АНСИГНЕТ ИНТ*/
 void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
 
     if(root->left == NULL && root->right == NULL) {
@@ -279,7 +275,7 @@ void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
             *pos_in_buf = 8;
             (*buf) &= 0;
         }
-        /*printf("%d ", bit );*/
+        //printf("%d ", bit );
 
         (*buf) |= (bit << ((*pos_in_buf) - 1));
         (*pos_in_buf)--;
@@ -359,7 +355,10 @@ int write_vocabilary(){
     assert(writed > 0);
     
     pairs_num = NUM_OF_SYM - i;
-    printf("%d\n", pairs_num);
+    if(verbose){
+         printf("%d\n", pairs_num);
+    }
+
     writed = fwrite(&pairs_num, sizeof(pairs_num), 1, dest_fp);
     assert(writed > 0);
 
@@ -478,7 +477,7 @@ int get_vocabilary() {
             return -1; 
         }
 
-        /*printf("%c - %d\n", unhuff_word_array[i].sym, unhuff_word_array[i].freq );*/
+        //printf("%c - %d\n", unhuff_word_array[i].sym, unhuff_word_array[i].freq );
         i++;
     }
 
@@ -490,7 +489,7 @@ int get_vocabilary() {
             error("invalid crc: could not unhuffman your file :(");
         }
     }
-  /*  printf("%d", sizeof(crc_end) -1)*/
+  //  printf("%d", sizeof(crc_end) -1)
 
     return i;
 }
@@ -536,10 +535,10 @@ int write_sym(unsigned char buf, WORD** c_tree){
                 print_binary(my_eof, 32);
             }
             if(curr_tree->code == my_eof){
-                if(curr_tree->eof_flag == 1){
+             /*   if(curr_tree->eof_flag == 1){*/
                     printf("eof\n");
                     return 1;
-                }  
+             //   }  
             }
             writed = fwrite(&(curr_tree->sym), sizeof(curr_tree->sym), 1, dest_fp);
             if(writed < 0){
@@ -566,11 +565,6 @@ int write_sym(unsigned char buf, WORD** c_tree){
             }
             curr_tree = curr_tree->left;
         }  
-    
-        
-        //   printf("111\n");
-  
-
         pos_in_buf--;
         //curr_c = buf;
         //c >>= 1;
@@ -619,9 +613,8 @@ void unhuffman() {
     get_vocabilary();
     show_list(unhuff_word_array);
     tree = create_tree(unhuff_word_array);
-    if(tree == NULL) {
-        close_files(); /*qqqertyerttttttttttttttttttttttttttttttt*/
-    }
+    assert(tree != NULL);
+
     if(verbose){
         printf("num of elements: %d\n", tree->freq);
     }
@@ -670,9 +663,7 @@ void huffman() {
     add_eof_to_array(word_array);
     
     tree = create_tree(word_array);
-    if(tree == NULL) {
-        close_files(); /*qqsdfsdfgsdfgsdfgdsfgdfgdsfgsdfgsdfgsdfgsdfgsdfdq*/
-    }
+    assert(tree != NULL);
     if(verbose){
         printf("num of elements: %d\n", tree->freq);
     }
@@ -680,10 +671,9 @@ void huffman() {
     get_codes(tree, 0, sizeof(tree->code)*8, 0);
     add_eof(word_array);
 
-    if(verbose){
+    //if(verbose){
         show_codes(word_array);
-    }
-
+    //}
     write_encoded_file();
     close_files();
 
