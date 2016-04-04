@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include <string.h>
+#include <getopt.h>
 
 #define NUM_OF_SYM 257
 #define EOF_MARKER 1
@@ -31,13 +32,13 @@ WORD *tree;
 FILE *source_fp, *dest_fp, *test_fp;
 char magic[] = "huff";
 const short version = 1;
-const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";    //crc for huffman vocabilary
+const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";    /*crc for huffman vocabilary*/
 
 unsigned int my_eof;
 int my_eof_len;
 int verbose = 0;
 
-typedef int (*compfn)(const void*, const void*); //for compare function
+typedef int (*compfn)(const void*, const void*); /*for compare function*/
 
 /*----------------------------functions-----------------------------------*/
 
@@ -48,7 +49,7 @@ void show_list(WORD *array) {
         if((array[i]).sym=='\0'){
             continue;
         }
-        //printf("%c - %d\t", array[i].sym, array[i].freq );
+        /*printf("%c - %d\t", array[i].sym, array[i].freq );*/
     }
 }
 
@@ -92,17 +93,16 @@ void print_binary(unsigned int n, int len) {
 
 void show_codes(WORD *array){
     int i = 0;
-    unsigned long n;
 
     while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
 
-    if (i == NUM_OF_SYM ){  //empty fileqqqqqqqqqqqqqq
+    if (i == NUM_OF_SYM ){  /*empty fileqqqqqqqqqqqqqq*/
         return;
     }
 
-    for(i; i < NUM_OF_SYM; i++) {
+    for(; i < NUM_OF_SYM; i++) {
         char c = array[i].sym;
         if(c<32){
             c = 32;
@@ -114,7 +114,7 @@ void show_codes(WORD *array){
     printf("\n");
 }
 
-//ДОБАВИТЬ ТАЙПОф АНСИГНЕТ ИНТ
+/*ДОБАВИТЬ ТАЙПОф АНСИГНЕТ ИНТ*/
 void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
 
     if(root->left == NULL && root->right == NULL) {
@@ -126,7 +126,7 @@ void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
     code |= (1 << (pos - 1));
     get_codes(root->right, code, pos - 1, code_len + 1);
     
-    code &= ~(1 << pos-1);
+    code &= ~(1 << (pos - 1));
     get_codes(root->left, code, pos - 1, code_len + 1);
 }
 
@@ -206,14 +206,14 @@ void add_eof(WORD *array){
 WORD * create_tree(WORD * array) {
 
     int i = 0;
-    WORD * head = NULL, * tail = NULL, *curr_root;
+    WORD * head = NULL, * tail = NULL;
     WORD *min1 = NULL, *min2 = NULL;
 
     while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
 
-    if (i == NUM_OF_SYM ){  //empty file
+    if (i == NUM_OF_SYM ){  /*empty file*/
         return NULL;
     }
 
@@ -245,7 +245,7 @@ WORD * create_tree(WORD * array) {
     assert(0);
 }
 
-// crc for huffman vocabilary
+/* crc for huffman vocabilary*/
 void crc_vocabilary(int *begin, int *end){
     return;
 }
@@ -254,8 +254,8 @@ void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
     
     unsigned int bit;
     unsigned int curr_code = code;
-//76543210
-//11100000
+/*76543210
+  11100000*/
 
     size_t writed;
     /*printf("got buf: %d ", *pos_in_buf);
@@ -264,25 +264,27 @@ void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
     print_binary(curr_code, sizeof(curr_code)*8);*/
 
     int pos_in_code = sizeof(code)*8 - 1;
-    //printf("pos int code %d - intill %d\n", pos_in_code, (sizeof(code_len)*8 - code_len) );
+    /*printf("pos int code %d - intill %d\n", pos_in_code, (sizeof(code_len)*8 - code_len) );*/
     while(pos_in_code >= (sizeof(code_len)*8 - code_len)){
         bit = ((curr_code & ((unsigned int)1<<pos_in_code))>> pos_in_code);
         
         if(*pos_in_buf == 0) {
             writed = fwrite(buf, sizeof(*buf), 1, dest_fp);
-            //printf("here\n");
-            //print_binary(*buf, sizeof(*buf)*8);
+            /*if(verbose){
+                printf("here\n");
+                print_binary(*buf, sizeof(*buf)*8);
+            }*/
+
             assert(writed > 0);
             *pos_in_buf = 8;
             (*buf) &= 0;
         }
-        //printf("%d ", bit );
+        /*printf("%d ", bit );*/
 
-        (*buf) |= (bit << (*pos_in_buf)-1);
+        (*buf) |= (bit << ((*pos_in_buf) - 1));
         (*pos_in_buf)--;
 
         pos_in_code--;
-        //curr_code = 
     }
 }
 
@@ -305,7 +307,7 @@ int write_data(){
         readed = fread(&c, sizeof(c), 1, source_fp); 
         if(readed > 0){
 
-            //founding symbol in a sorted vocabilary
+            /*founding symbol in a sorted vocabilary*/
             int i = 0;
             while(i < NUM_OF_SYM && (word_array[i].sym != c || word_array[i].eof_flag == 1)) { i++; }
             assert(i < NUM_OF_SYM);
@@ -323,7 +325,7 @@ int write_data(){
         }   
     }
     
-    //adding my_EOF
+    /*adding my_EOF*/
     add_to_buff(&buf, &pos_in_buf, my_eof_len, my_eof);
     if(verbose){
         printf("my eof: ");
@@ -347,7 +349,7 @@ int write_vocabilary(){
         return -1;
     }
 
-    //crc_vocabilary(&crc_begin, &crc_end);
+    /*crc_vocabilary(&crc_begin, &crc_end);*/
     
     size_t writed = fwrite(magic, sizeof(magic) - 1, 1, dest_fp);
     assert(writed > 0);
@@ -361,7 +363,7 @@ int write_vocabilary(){
     writed = fwrite(&pairs_num, sizeof(pairs_num), 1, dest_fp);
     assert(writed > 0);
 
-    for(i; i < NUM_OF_SYM; i++) {
+    for(; i < NUM_OF_SYM; i++) {
         writed = fwrite(&(word_array[i].sym), sizeof(word_array[i].sym), 1, dest_fp);
         assert(writed > 0);
         writed = fwrite(&(word_array[i].freq), sizeof(word_array[i].freq), 1, dest_fp);
@@ -476,7 +478,7 @@ int get_vocabilary() {
             return -1; 
         }
 
-        //printf("%c - %d\n", unhuff_word_array[i].sym, unhuff_word_array[i].freq );
+        /*printf("%c - %d\n", unhuff_word_array[i].sym, unhuff_word_array[i].freq );*/
         i++;
     }
 
@@ -488,13 +490,13 @@ int get_vocabilary() {
             error("invalid crc: could not unhuffman your file :(");
         }
     }
-  //  printf("%d", sizeof(crc_end) -1)
+  /*  printf("%d", sizeof(crc_end) -1)*/
 
     return i;
 }
 
 void close_files() {
-    if (fclose(source_fp)){ //добавить отмену еоф
+    if (fclose(source_fp)){ 
         error("could not close a source file");
     }
     if (fclose(dest_fp)) {
@@ -519,15 +521,11 @@ int write_sym(unsigned char buf, WORD** c_tree){
     
     int pos_in_buf = sizeof(buf)*8;
 
-    char curr_c = buf;
-    char sym;
-
     unsigned int bit;
 
     size_t writed;
 
     WORD * curr_tree = *c_tree;
-    WORD *eof = NULL;
 
     while (pos_in_buf >= 0) {
         
@@ -550,7 +548,7 @@ int write_sym(unsigned char buf, WORD** c_tree){
             curr_tree = tree;
         }  
 
-        bit = (buf >> pos_in_buf -1) & 1;
+        bit = (buf >> (pos_in_buf - 1)) & 1;
         if(pos_in_buf == 0) {
             *c_tree = curr_tree;
             return 0;
@@ -585,22 +583,16 @@ int write_sym(unsigned char buf, WORD** c_tree){
 
 void write_res_file(){
 
-    //unsigned char c;
     unsigned char buf;
     
     WORD * curr_tree = tree;
-    //buf &= 0;
-    
-    //unsigned int curr_code;
-    //int code_len;
-    //printf("%s\n", );
 
     size_t readed;
 
-    //fseek(source_fp, 0L, SEEK_SET);
-    //rewind(source_fp);
+    /*fseek(source_fp, 0L, SEEK_SET);
+    rewind(source_fp);
 
-    int pos_in_buf = (sizeof(buf))*8;
+    int pos_in_buf = (sizeof(buf))*8;*/
     while (!feof(source_fp)) {
         readed = fread(&buf, sizeof(buf), 1, source_fp); 
         if(readed > 0){
@@ -628,7 +620,7 @@ void unhuffman() {
     show_list(unhuff_word_array);
     tree = create_tree(unhuff_word_array);
     if(tree == NULL) {
-        close_files(); //qqq
+        close_files(); /*qqqertyerttttttttttttttttttttttttttttttt*/
     }
     if(verbose){
         printf("num of elements: %d\n", tree->freq);
@@ -657,19 +649,19 @@ void add_eof_to_array(WORD *array){
     }
 
     assert(i>0);
-    //if (i == NUM_OF_SYM ){  //empty file
-    //    return;
-    //}
+    /*if (i == NUM_OF_SYM ){  //empty file
+        return;
+    }*/
 
     i--;
-    //array[i].sym = 'e';
+    /*array[i].sym = 'e';*/
     array[i].freq = 1;
     array[i].eof_flag = 1;
 }
 
 void huffman() {
 
-    //добавить указатели на функции и запускать их в цикле
+    /*добавить указатели на функции и запускать их в цикле*/
     get_symbols();
     sort_symbols();
     if(verbose){
@@ -679,7 +671,7 @@ void huffman() {
     
     tree = create_tree(word_array);
     if(tree == NULL) {
-        close_files(); //qqq
+        close_files(); /*qqsdfsdfgsdfgsdfgdsfgdfgdsfgsdfgsdfgsdfgsdfgsdfdq*/
     }
     if(verbose){
         printf("num of elements: %d\n", tree->freq);
@@ -703,7 +695,7 @@ void huffman() {
 char parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
 
     char *opts = "vs:d:u";
-    char what_to_do = 'h';  //'-h' as default 
+    char what_to_do = 'h';  /*'-h' as default */
 
     int opt;
     while((opt = getopt(argc, argv, opts)) != -1) {
