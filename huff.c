@@ -14,7 +14,7 @@ typedef struct WORD_S WORD;
 
 struct WORD_S{
     int freq;
-    char sym;
+    unsigned char sym;
     WORD * left;
     WORD * right;
     WORD * next;
@@ -92,7 +92,7 @@ void show_codes(WORD *array){
     int i = 0;
     unsigned long n;
 
-    while(array[i].freq == 0 ) {
+    while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
 
@@ -184,7 +184,7 @@ void add_eof(WORD *array){
 
     int i = 0;
 
-    while((array[i]).freq == 0 ) {
+    while(i < NUM_OF_SYM && (array[i]).freq == 0 ) {
         i++;
     }
 
@@ -203,7 +203,7 @@ WORD * create_tree(WORD * array) {
     WORD * head = NULL, * tail = NULL, *curr_root;
     WORD *min1 = NULL, *min2 = NULL;
 
-    while(array[i].freq == 0 ) {
+    while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
 
@@ -296,12 +296,12 @@ int write_data(){
 
     int pos_in_buf = sizeof(buf)*8;
     while (!feof(source_fp)) {
-        readed = fread(&c, sizeof(char), 1, source_fp); 
+        readed = fread(&c, sizeof(c), 1, source_fp); 
         if(readed > 0){
 
             //founding symbol in a sorted vocabilary
             int i = 0;
-            while(word_array[i].sym != c) { i++; }
+            while(i < NUM_OF_SYM && word_array[i].sym != c) { i++; }
             if(i == NUM_OF_SYM) { return; }
 
             code_len = word_array[i].code_len;
@@ -333,7 +333,7 @@ int write_vocabilary(){
 
     int i = 0, pairs_num = 0;
 
-    while(word_array[i].freq == 0 ) {
+    while(i < NUM_OF_SYM && word_array[i].freq == 0 ) {
         i++;
     }
     
@@ -623,7 +623,7 @@ void unhuffman() {
 void add_eof_to_array(WORD *array){
 
     int i = 0;
-    while(array[i].freq == 0 ) {
+    while(i < NUM_OF_SYM && array[i].freq == 0 ) {
         i++;
     }
 
