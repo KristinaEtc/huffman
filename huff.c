@@ -113,6 +113,7 @@ void show_codes(WORD *array){
 
 void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
 
+    assert(code_len <= sizeof(code)*8);
     if(root->left == NULL && root->right == NULL) {
         root->code = code;
         root->code_len = code_len;
@@ -604,6 +605,31 @@ void write_res_file(){
     }
 }
 
+void free_memory(WORD *root){
+
+    //do nothing if passed a non-existent node
+    if (root == NULL){
+        return;
+    }
+
+    //now onto the recursion
+    free_memory(root->left);
+    free_memory(root->right);
+
+    if(root->left != NULL)
+        free(root);
+}
+
+
+void end_work(){
+
+    free_memory(tree);
+    close_files();
+    if(verbose){
+        printf("\ndone.\n");
+    }
+}
+
 void unhuffman() {
 
     if(verbose){
@@ -628,10 +654,7 @@ void unhuffman() {
 
     write_res_file();
 
-    close_files();
-    if(verbose){
-        printf("\ndone.\n");
-    }
+    end_work();
 }
 
 void add_eof_to_array(WORD *array){
@@ -675,7 +698,8 @@ void huffman() {
         show_codes(word_array);
     //}
     write_encoded_file();
-    close_files();
+
+    end_work();
 
     if(verbose){
         printf("\ndone.\n");
