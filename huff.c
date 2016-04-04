@@ -7,15 +7,20 @@
 
 #define NUM_OF_SYM 256
 
-typedef struct{
+#define error(msg) do { fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg); exit(EXIT_FAILURE); } while(0)
+
+
+typedef struct WORD_S WORD;
+
+struct WORD_S{
     int freq;
     char sym;
-    struct WORD * left;
-    struct WORD * right;
-    struct WORD * next;
+    WORD * left;
+    WORD * right;
+    WORD * next;
     unsigned int code;
     int code_len;
-}WORD;
+};
 
 WORD word_array[NUM_OF_SYM];
 WORD unhuff_word_array[NUM_OF_SYM];
@@ -28,6 +33,7 @@ const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";    //crc for huffma
 
 unsigned int my_eof;
 int my_eof_len;
+int verbose = 0;
 
 typedef int (*compfn)(const void*, const void*); //for compare function
 
@@ -40,7 +46,7 @@ void show_list(WORD *array) {
         if((array[i]).sym=='\0'){
             continue;
         }
-        printf("%c - %d\t", array[i].sym, array[i].freq );
+        //printf("%c - %d\t", array[i].sym, array[i].freq );
     }
 }
 
@@ -63,6 +69,9 @@ void sort_symbols() {
 
 void print_binary(unsigned int n, int len) {
 
+    if(!verbose){
+        return;
+    }
     unsigned int bit = 1<<(len-1);
 
     while (len > 0) {
@@ -87,8 +96,8 @@ void show_codes(WORD *array){
         i++;
     }
 
-    if (i == NUM_OF_SYM ){  //empty file
-        return NULL;
+    if (i == NUM_OF_SYM ){  //empty fileqqqqqqqqqqqqqq
+        return;
     }
 
     for(i; i < NUM_OF_SYM; i++) {
@@ -129,14 +138,6 @@ void get_symbols(void) {
             break;
         }
     }
-}
-
-void error(const char *msg) {
-    close_files();
-    //remove(filename); //имя файла dest должно быть глобальным, чтобы можно было удалить в случае ошибки
-
-    fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg);
-    exit(EXIT_FAILURE);
 }
 
 int help(void) {
@@ -180,33 +181,6 @@ WORD* get_min_element(int *i, WORD **head, WORD *tail, WORD* array) {
 }
 
 void add_eof(WORD *array){
-   /* WORD *curr_tree = *array;
-    WORD *eof_node;
-
-    my_eof &= 0;*/
-
-  /*  while(curr_tree->left != NULL){
-        curr_tree = curr_tree->left;
-    }
-    if (curr_tree != NULL){
-        eof_node = (WORD*)malloc(1*sizeof(WORD));
-        eof_node->code_len = curr_tree->code_len + 1;
-        eof_node->code = curr_tree->code;
-        eof_node->code |= 1 << (sizeof(eof_node)*8 - curr_tree->code_len - 1);
-       // print_binary(eof_node->code, 32);
-       // print_binary(curr_tree->code, 32);
-      //  eof_node->code |= 1;
-        curr_tree->left = eof_node;
-        int pos = 1 << (curr_tree->code_len);
-        my_eof = curr_tree->code;
-        my_eof |= pos;
-        my_eof_len = curr_tree->code_len + 1;*/
-        /*my_eof = eof_node->code;
-        my_eof_len = eof_node->code_len;
-        printf("my eof: ");
-
-        print_binary(my_eof, 32);
-    }*/
 
     int i = 0;
 
@@ -216,9 +190,11 @@ void add_eof(WORD *array){
 
     my_eof = (array[i]).code;
     my_eof_len = (array[i]).code_len;
-    printf("eof len %d\t", my_eof_len);
-    print_binary(my_eof, 32);
-    return 0;
+    if(verbose){
+        printf("eof len %d\t", my_eof_len);
+        print_binary(my_eof, 32);
+    }
+    return;
 }
 
 WORD * create_tree(WORD * array) {
@@ -330,8 +306,10 @@ int write_data(){
 
             code_len = word_array[i].code_len;
             curr_code = word_array[i].code;
-            printf("code: ");
-            print_binary(curr_code, code_len);
+            if(verbose){
+                printf("code: ");
+                print_binary(curr_code, code_len);
+            }
 
             add_to_buff(&buf, &pos_in_buf, code_len, curr_code);
         }else{
@@ -341,8 +319,10 @@ int write_data(){
     
     //adding my_EOF
     add_to_buff(&buf, &pos_in_buf, my_eof_len, my_eof);
-    printf("my eof: ");
-    print_binary(my_eof, my_eof_len);
+    if(verbose){
+        printf("my eof: ");
+        print_binary(my_eof, my_eof_len);
+    }
 
     writed = fwrite(&buf, sizeof(buf), 1, dest_fp);
     assert(writed > 0);
@@ -361,7 +341,7 @@ int write_vocabilary(){
         return -1;
     }
 
-    crc_vocabilary(&crc_begin, &crc_end);
+    //crc_vocabilary(&crc_begin, &crc_end);
     
     size_t writed = fwrite(magic, sizeof(magic) - 1, 1, dest_fp);
     assert(writed > 0);
@@ -457,7 +437,9 @@ int get_vocabilary() {
         readed = fread(&c, sizeof(char), 1, source_fp); 
         if(readed > 0) {
             unhuff_word_array[i].sym = c;
-            printf("%c - ",unhuff_word_array[i].sym  );
+            if(verbose){
+                printf("%c - ",unhuff_word_array[i].sym  );
+            }
         }else { 
             break; 
         }
@@ -465,7 +447,9 @@ int get_vocabilary() {
         readed = fread(&freq, sizeof(freq), 1, source_fp); 
         if(readed > 0) {
             unhuff_word_array[i].freq = freq;
-            printf("%d\n ",unhuff_word_array[i].freq  );
+            if(verbose){
+                printf("%d\n ",unhuff_word_array[i].freq  );
+            }
         }else { 
             error("could not process file :(");
             return -1; 
@@ -488,13 +472,12 @@ int get_vocabilary() {
 }
 
 void close_files() {
-    fcloseall();
-    /*if (!fclose(source_fp)){ //добавить отмену еоф
+    if (fclose(source_fp)){ //добавить отмену еоф
         error("could not close a source file");
     }
-    if (!fclose(dest_fp)) {
+    if (fclose(dest_fp)) {
         error("could not close a destination file");
-    }*/
+    }
 }
 
 void open_files(char * source, char * dest ) {
@@ -527,7 +510,9 @@ int write_sym(unsigned char buf, WORD** c_tree){
     while (pos_in_buf >= 0) {
         
         if(curr_tree->right == NULL ){
-            printf("\ngot leaf: %c\tpos in buf: %d\n", curr_tree->sym, pos_in_buf);
+            if(verbose){
+                printf("\ngot leaf: %c\tpos in buf: %d\n", curr_tree->sym, pos_in_buf);
+            }
            // print_binary(curr_tree->code, 32);
            // print_binary(my_eof, 32);
 
@@ -593,8 +578,10 @@ void write_res_file(){
     while (!feof(source_fp)) {
         readed = fread(&buf, sizeof(buf), 1, source_fp); 
         if(readed > 0){
-           // printf("bufpuf: ");
-            print_binary(buf, 8);
+            if(verbose){
+                printf("bufpuf: ");
+                print_binary(buf, 8);
+            }
             int got = write_sym(buf, &curr_tree);
             if(got){
                 break;
@@ -607,24 +594,30 @@ void write_res_file(){
 
 void unhuffman() {
 
-    printf("unhuffman\n\n"); 
+    if(verbose){
+        printf("unhuffman\n\n");
+    } 
 
     get_vocabilary();
-    show_list(&unhuff_word_array);
-    tree = create_tree(&unhuff_word_array);
+    show_list(unhuff_word_array);
+    tree = create_tree(unhuff_word_array);
     if(tree == NULL) {
         close_files(); //qqq
     }
-    printf("num of elements: %d\n", tree->freq);
+    if(verbose){
+        printf("num of elements: %d\n", tree->freq);
+    }
 
     get_codes(tree, 0, sizeof(tree->code)*8, 0);
-    add_eof(&unhuff_word_array);
-    show_codes(&unhuff_word_array);
+    add_eof(unhuff_word_array);
+    show_codes(unhuff_word_array);
 
     write_res_file();
 
     close_files();
-    printf("\ndone.\n");
+    if(verbose){
+        printf("\ndone.\n");
+    }
 }
 
 void add_eof_to_array(WORD *array){
@@ -648,24 +641,27 @@ void huffman() {
     //добавить указатели на функции и запускать их в цикле
     get_symbols();
     sort_symbols();
-    show_list(&word_array);
-    add_eof_to_array(&word_array);
+    show_list(word_array);
+    add_eof_to_array(word_array);
     
-    tree = create_tree(&word_array);
+    tree = create_tree(word_array);
     if(tree == NULL) {
         close_files(); //qqq
     }
-    printf("num of elements: %d\n", tree->freq);
+    if(verbose){
+        printf("num of elements: %d\n", tree->freq);
+    }
     
     get_codes(tree, 0, sizeof(tree->code)*8, 0);
-    add_eof(&word_array);
+    add_eof(word_array);
 
-    show_codes(&word_array);
+    show_codes(word_array);
     write_encoded_file();
     close_files();
 
-
-    printf("\ndone.\n");
+    if(verbose){
+        printf("\ndone.\n");
+    }
 }
 
 char parsing_command_line(int argc, char *argv[], char **source_file, char **dest_file) {
@@ -685,6 +681,8 @@ char parsing_command_line(int argc, char *argv[], char **source_file, char **des
             case 'u':
                 what_to_do = 'u';
                 break;
+            case 'v':
+                verbose = 1;
             case '?': 
                 fprintf(stderr, "invalid optget option");
                 break;
