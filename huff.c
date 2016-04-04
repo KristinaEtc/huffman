@@ -5,22 +5,24 @@
 #include <assert.h>
 #include <string.h>
 #include <getopt.h>
+#include <stdint.h>
 
 #define NUM_OF_SYM 257
 //#define EOF_MARKER 1
 
 #define error(msg) do { fprintf(stderr, "[ERR] file %s/line %d: %s\n", __FILE__, __LINE__, msg); exit(EXIT_FAILURE); } while(0)
 
+#define BUF_SIZE 65536
 
 typedef struct WORD_S WORD;
 
 struct WORD_S{
     int freq;
-    unsigned char sym;
+    uint8_t sym;
     WORD * left;
     WORD * right;
     WORD * next;
-    unsigned int code;
+    uint64_t code;
     int code_len;
     char eof_flag;
 };
@@ -34,7 +36,7 @@ char magic[] = "huff";
 const short version = 1;
 const char crc_begin[] = "crc_begin", crc_end[] = "crc_end";    /*crc for huffman vocabilary*/
 
-unsigned int my_eof;
+uint64_t my_eof;
 int my_eof_len;
 int verbose = 0;
 
@@ -70,12 +72,12 @@ void sort_symbols() {
     (compfn)compare );
 }
 
-void print_binary(unsigned int n, int len) {
+void print_binary(uint64_t n, int len) {
 
     //if(!verbose){
     //    return;
     //}
-    unsigned int bit = 1<<(len-1);
+    uint64_t bit = 1<<(len-1);
 
     while (len > 0) {
         if(len%8==0) printf(" ");
@@ -105,13 +107,13 @@ void show_codes(WORD *array){
             c = 32;
         }
         printf("\nsym: %c /in hex: %x / code len: %d\t ", c, array[i].sym, array[i].code_len);
-        print_binary(array[i].code, array[i].code_len);
-        print_binary(array[i].code, 32);
+        //print_binary(array[i].code, array[i].code_len);
+        print_binary(array[i].code, 64);
     }
     printf("\n");
 }
 
-void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
+void get_codes(WORD*root, uint64_t code, unsigned int pos, int code_len) {
 
     assert(code_len <= sizeof(code)*8);
     if(root->left == NULL && root->right == NULL) {
@@ -120,23 +122,30 @@ void get_codes(WORD*root, unsigned int code, unsigned int pos, int code_len) {
         return;
     }
 
-    code |= (1 << (pos - 1));
+    code |= ((uint64_t)1 << (pos - 1));
     get_codes(root->right, code, pos - 1, code_len + 1);
     
-    code &= ~(1 << (pos - 1));
+    code &= ~((uint64_t)1 << (pos - 1));
     get_codes(root->left, code, pos - 1, code_len + 1);
 }
 
 void get_symbols(void) {
-    unsigned char c;
+    uint8_t c;
+    uint8_t buf[BUF_SIZE];
+    size_t i;
 
     memset(word_array, 0, sizeof(word_array));
 
     while (!feof(source_fp)) {
-        size_t readed = fread(&c, sizeof(char), 1, source_fp); 
+        size_t readed = fread(buf, sizeof(uint8_t), BUF_SIZE, source_fp);
+        //printf("%d\n", readed); 
         if(readed > 0){
-            word_array[c].freq++;
-            word_array[c].sym = c;
+            
+            for(i = 0; i < readed; i++){
+                c = buf[i];
+                word_array[c].freq++;
+                word_array[c].sym = c;
+            }
         }else{
             break;
         }
@@ -195,7 +204,7 @@ void add_eof(WORD *array){
     my_eof_len = (array[i]).code_len;
     if(verbose){
         printf("eof len %d\t", my_eof_len);
-        print_binary(my_eof, 32);
+        print_binary(my_eof, 64);
     }
     return;
 }
@@ -247,10 +256,10 @@ void crc_vocabilary(int *begin, int *end){
     return;
 }
 
-void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
+void add_to_buff(uint8_t *buf, int *pos_in_buf, int code_len, uint64_t code){
     
-    unsigned int bit;
-    unsigned int curr_code = code;
+    uint64_t bit;
+    uint64_t curr_code = code;
 /*76543210
   11100000*/
 
@@ -262,8 +271,8 @@ void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
 
     int pos_in_code = sizeof(code)*8 - 1;
     /*printf("pos int code %d - intill %d\n", pos_in_code, (sizeof(code_len)*8 - code_len) );*/
-    while(pos_in_code >= (sizeof(code_len)*8 - code_len)){
-        bit = ((curr_code & ((unsigned int)1<<pos_in_code))>> pos_in_code);
+    while(pos_in_code >= (sizeof(code)*8 - code_len)){
+        bit = ((curr_code & ((uint64_t)1<<pos_in_code))>> pos_in_code);
         
         if(*pos_in_buf == 0) {
             writed = fwrite(buf, sizeof(*buf), 1, dest_fp);
@@ -287,11 +296,14 @@ void add_to_buff(char *buf, int *pos_in_buf, int code_len, unsigned int code){
 
 int write_data(){
 
-    unsigned char c;
-    char buf;
+    uint8_t c;
+    uint8_t buf;
     buf &= 0;
+
+    uint8_t read_buf[BUF_SIZE];
+    size_t j;
     
-    unsigned int curr_code;
+    uint64_t curr_code;
     int code_len;
 
     size_t readed, writed;
@@ -301,22 +313,25 @@ int write_data(){
 
     int pos_in_buf = sizeof(buf)*8;
     while (!feof(source_fp)) {
-        readed = fread(&c, sizeof(c), 1, source_fp); 
+        readed = fread(read_buf, sizeof(read_buf[0]), sizeof(read_buf), source_fp); 
         if(readed > 0){
+            for(j = 0; j < readed; j++){
+                c = read_buf[j];
+               
+                /*founding symbol in a sorted vocabilary*/
+                int i = 0;
+                while(i < NUM_OF_SYM && (word_array[i].sym != c || word_array[i].eof_flag == 1 || word_array[i].freq==0)) { i++; }
+                assert(i < NUM_OF_SYM);
 
-            /*founding symbol in a sorted vocabilary*/
-            int i = 0;
-            while(i < NUM_OF_SYM && (word_array[i].sym != c || word_array[i].eof_flag == 1)) { i++; }
-            assert(i < NUM_OF_SYM);
+                code_len = word_array[i].code_len;
+                curr_code = word_array[i].code;
+                if(verbose){
+                    printf("code: ");
+                    print_binary(curr_code, 64);
+                }
 
-            code_len = word_array[i].code_len;
-            curr_code = word_array[i].code;
-            if(verbose){
-                printf("code: ");
-                print_binary(curr_code, 32);
+                add_to_buff(&buf, &pos_in_buf, code_len, curr_code);
             }
-
-            add_to_buff(&buf, &pos_in_buf, code_len, curr_code);
         }else{
             break;
         }   
@@ -326,7 +341,7 @@ int write_data(){
     add_to_buff(&buf, &pos_in_buf, my_eof_len, my_eof);
     if(verbose){
         printf("my eof: ");
-        print_binary(my_eof, 32);
+        print_binary(my_eof, 64);
     }
 
     writed = fwrite(&buf, sizeof(buf), 1, dest_fp);
@@ -517,7 +532,7 @@ void open_files(char * source, char * dest ) {
     }
 }
 
-int write_sym(unsigned char buf, WORD** c_tree){
+int write_sym(uint8_t buf, WORD** c_tree){
     
     int pos_in_buf = sizeof(buf)*8;
 
@@ -532,8 +547,8 @@ int write_sym(unsigned char buf, WORD** c_tree){
         if(curr_tree->right == NULL ){
             if(verbose){
                 printf("\ngot leaf: %2x\tpos in buf: %d\n", curr_tree->sym, pos_in_buf); //hex 16 bit
-                print_binary(curr_tree->code, 32);
-                print_binary(my_eof, 32);
+                print_binary(curr_tree->code, 64);
+                print_binary(my_eof, 64);
             }
             if(curr_tree->code == my_eof){
              /*   if(curr_tree->eof_flag == 1){*/
@@ -578,7 +593,7 @@ int write_sym(unsigned char buf, WORD** c_tree){
 
 void write_res_file(){
 
-    unsigned char buf;
+    uint8_t buf;
     
     WORD * curr_tree = tree;
 
@@ -694,9 +709,9 @@ void huffman() {
     get_codes(tree, 0, sizeof(tree->code)*8, 0);
     add_eof(word_array);
 
-    //if(verbose){
+    if(verbose){
         show_codes(word_array);
-    //}
+    }
     write_encoded_file();
 
     end_work();
